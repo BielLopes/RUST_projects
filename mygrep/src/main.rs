@@ -1,6 +1,6 @@
+use mygrep::Config;
 use std::env;
 use std::process;
-use mygrep::Config;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -9,12 +9,8 @@ fn main() {
         process::exit(1);
     });
 
-    println!("Searching from {}", config.query);
-    println!("In file {}", config.file_path);
-
     if let Err(e) = mygrep::run(config) {
         println!("Application error: {e}");
         process::exit(1);
     }
 }
-
