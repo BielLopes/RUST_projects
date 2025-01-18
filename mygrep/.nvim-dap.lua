@@ -1,7 +1,16 @@
+-- Run the program
 vim.keymap.set("n", "<leader>cr", function()
     vim.cmd("ToggleTerm")
+    local query = vim.fn.input("Enter the shearch query: ")
     -- Send the command to the default terminal
-    vim.cmd("TermExec cmd='cargo run -- text poem.txt'")
+    vim.cmd("TermExec cmd='cargo run -- " .. query .. " poem.txt'")
+end)
+
+-- Runt tests
+vim.keymap.set("n", "<leader>ct", function()
+    vim.cmd("ToggleTerm")
+    -- Send the command to the default terminal
+    vim.cmd("TermExec cmd='cargo test'")
 end)
 
 local dap = require("dap")
