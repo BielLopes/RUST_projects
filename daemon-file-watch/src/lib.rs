@@ -1,12 +1,31 @@
+use nix::libc;
 use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
+use nix::sys::signal::{self, SigHandler, Signal};
 use notify_rust::Notification;
 use std::error::Error;
-use std::fs;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::{fs, process};
+
+// Global flag to detect signals
+static SIGNAL_RECEIVED: AtomicBool = AtomicBool::new(false);
+
+extern "C" fn exit_signal_handler(_sig: libc::c_int) {
+    println!("Signal received, cleaning up...");
+    SIGNAL_RECEIVED.store(true, Ordering::SeqCst);
+}
+
+fn setup_signal_handlers() {
+    unsafe {
+        let handler = SigHandler::Handler(exit_signal_handler);
+        signal::signal(Signal::SIGABRT, handler).expect("Failed to set SIGABRT handler");
+        signal::signal(Signal::SIGINT, handler).expect("Failed to set SIGINT handler");
+        signal::signal(Signal::SIGTERM, handler).expect("Failed to set SIGTERM handler");
+    }
+}
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let instance = Inotify::init(InitFlags::empty())?;
-
-    let _watcher = instance.add_watch(
+    let watcher = instance.add_watch(
         config.path.as_str(),
         AddWatchFlags::IN_CREATE
             | AddWatchFlags::IN_DELETE
@@ -15,9 +34,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             | AddWatchFlags::IN_MOVE_SELF,
     )?;
 
+    setup_signal_handlers();
+
     loop {
+        if SIGNAL_RECEIVED.load(Ordering::SeqCst) {
+            println!("Exiting gracefully...");
+            let _ = instance.rm_watch(watcher);
+            process::exit(0);
+        }
+
         // We read from our inotify instance for events.
-        println!("Waiting for events...");
         let events = instance.read_events()?;
         let mut message: Option<String> = None;
 
