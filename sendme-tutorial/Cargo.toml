@@ -1,0 +1,10 @@
+[package]
+name = "sendme-tutorial"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+iroh = "0.32.1"
+iroh-blobs = { version = "0.32.0", features = ["rpc"] }
+tokio = "1.43.0"
