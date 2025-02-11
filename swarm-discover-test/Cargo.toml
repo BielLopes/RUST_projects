@@ -1,0 +1,12 @@
+[package]
+name = "swarm-discover-test"
+version = "0.1.0"
+edition = "2021"
+about = "Learn P2P dicovery"
+
+[dependencies]
+anyhow = "1.0.95"
+clap = { version = "4.5.28", features = ["derive"] }
+if-addrs = "0.13.3"
+swarm-discovery = "0.2.1"
+tokio = { version = "1.43.0", features = ["signal"] }

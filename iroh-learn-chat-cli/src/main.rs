@@ -4,8 +4,8 @@ use anyhow::Result;
 use clap::Parser;
 use futures_lite::StreamExt;
 use iroh::protocol::Router;
-use iroh::NodeAddr;
 use iroh::{Endpoint, NodeId};
+use iroh::{NodeAddr, SecretKey};
 use iroh_gossip::{
     net::{Event, Gossip, GossipEvent, GossipReceiver},
     proto::TopicId,
@@ -62,10 +62,16 @@ async fn main() -> Result<()> {
         }
     };
 
-    // We've removed the `SecretKey::generate` method.
     // The `Endpoint` will generate a `SecretKey` for
     // you under the hood if you don't supply one.
-    let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+    let secret_key = SecretKey::generate(rand::rngs::OsRng);
+    print!("> my secret key: {secret_key}");
+
+    let endpoint = Endpoint::builder()
+        .secret_key(secret_key)
+        .discovery_n0()
+        .bind()
+        .await?;
 
     println!("> our node id: {}", endpoint.node_id());
 
