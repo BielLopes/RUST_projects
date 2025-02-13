@@ -1,3 +1,4 @@
+use num::{CheckedAdd, CheckedSub, One, Zero};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -9,20 +10,21 @@ pub enum BlockError {
     OverflowIncrementNonce,
 }
 
-type AccountId = String;
-type BlockNumber = u128;
-type Nonce = u32;
-
 #[derive(Debug)]
-pub struct Pallet {
+pub struct Pallet<AccountId, BlockNumber, Nonce> {
     bloc_number: BlockNumber,
     nonce: BTreeMap<AccountId, Nonce>, // Numver of transactions someone make on the blockchain
 }
 
-impl Pallet {
+impl<AccountId, BlockNumber, Nonce> Pallet<AccountId, BlockNumber, Nonce>
+where
+    AccountId: Ord + Clone,
+    BlockNumber: Zero + One + CheckedSub + CheckedAdd + Copy,
+    Nonce: Zero + One + CheckedSub + CheckedAdd + Copy,
+{
     pub fn new() -> Self {
         Self {
-            bloc_number: 0,
+            bloc_number: BlockNumber::zero(),
             nonce: BTreeMap::new(),
         }
     }
@@ -34,16 +36,17 @@ impl Pallet {
     pub fn increment_block_number(&mut self) -> Result<(), BlockError> {
         self.bloc_number = self
             .bloc_number
-            .checked_add(1)
+            .checked_add(&BlockNumber::one())
             .ok_or(BlockError::OverflowIncrementBlockNumber)?;
 
         Ok(())
     }
 
     pub fn increment_nonce(&mut self, who: &AccountId) -> Result<(), BlockError> {
-        let nonce = self.nonce.get(who).unwrap_or(&0);
+        let binding = Nonce::zero();
+        let nonce = self.nonce.get(who).unwrap_or(&binding);
         let new_nonce = nonce
-            .checked_add(1)
+            .checked_add(&Nonce::one())
             .ok_or(BlockError::OverflowIncrementNonce)?;
         self.nonce.insert(who.clone(), new_nonce);
 
@@ -51,15 +54,16 @@ impl Pallet {
     }
 
     pub fn get_nonce(&self, who: &AccountId) -> Nonce {
-        *self.nonce.get(who).unwrap_or(&0)
+        *self.nonce.get(who).unwrap_or(&Nonce::zero())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types;
 
-    fn setup() -> Pallet {
+    fn setup() -> Pallet<types::AccountId, types::BlockNumber, types::Nonce> {
         Pallet::new()
     }
 

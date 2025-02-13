@@ -1,3 +1,4 @@
+use num::{CheckedAdd, CheckedSub, Zero};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -27,15 +28,16 @@ pub enum TransferError {
 //     }
 // }
 
-type AccountId = String;
-type Balance = u128;
-
 #[derive(Debug)]
-pub struct Pallet {
+pub struct Pallet<AccountId, Balance> {
     balances: BTreeMap<AccountId, Balance>,
 }
 
-impl Pallet {
+impl<AccountId, Balance> Pallet<AccountId, Balance>
+where
+    AccountId: Ord + Clone,
+    Balance: Zero + CheckedSub + CheckedAdd + Copy,
+{
     pub fn new() -> Self {
         Self {
             balances: BTreeMap::new(),
@@ -46,8 +48,8 @@ impl Pallet {
         self.balances.insert(who.clone(), balance);
     }
 
-    pub fn balance(&self, who: &AccountId) -> &Balance {
-        self.balances.get(who).unwrap_or(&0)
+    pub fn balance(&self, who: &AccountId) -> Balance {
+        *self.balances.get(who).unwrap_or(&Balance::zero())
     }
 
     pub fn transfer(
@@ -60,10 +62,10 @@ impl Pallet {
         let to_balance = self.balance(to);
 
         let new_from_balance = from_balance
-            .checked_sub(amount)
+            .checked_sub(&amount)
             .ok_or(TransferError::InsufficientBalance)?;
         let new_to_balance = to_balance
-            .checked_add(amount)
+            .checked_add(&amount)
             .ok_or(TransferError::OverflowBalance)?;
 
         self.set_balance(from, new_from_balance);
@@ -76,8 +78,9 @@ impl Pallet {
 #[cfg(test)]
 mod tets {
     use super::*;
+    use crate::types;
 
-    fn setup() -> (String, String, Pallet) {
+    fn setup() -> (String, String, Pallet<types::AccountId, types::Balance>) {
         (String::from("Alice"), String::from("Bob"), Pallet::new())
     }
 
@@ -87,8 +90,8 @@ mod tets {
 
         pallet.set_balance(&alice, 100);
 
-        assert_eq!(pallet.balance(&alice), &100);
-        assert_eq!(pallet.balance(&bob), &0);
+        assert_eq!(pallet.balance(&alice), 100);
+        assert_eq!(pallet.balance(&bob), 0);
     }
 
     #[test]
@@ -99,8 +102,8 @@ mod tets {
         pallet.set_balance(&bob, 100);
 
         pallet.transfer(&alice, &bob, 50).unwrap();
-        assert_eq!(pallet.balance(&alice), &50);
-        assert_eq!(pallet.balance(&bob), &150);
+        assert_eq!(pallet.balance(&alice), 50);
+        assert_eq!(pallet.balance(&bob), 150);
     }
 
     #[test]
@@ -116,8 +119,8 @@ mod tets {
             result.unwrap_err().to_string(),
             TransferError::InsufficientBalance.to_string()
         );
-        assert_eq!(pallet.balance(&alice), &100);
-        assert_eq!(pallet.balance(&bob), &100);
+        assert_eq!(pallet.balance(&alice), 100);
+        assert_eq!(pallet.balance(&bob), 100);
     }
 
     #[test]
@@ -133,7 +136,7 @@ mod tets {
             result.unwrap_err().to_string(),
             TransferError::OverflowBalance.to_string()
         );
-        assert_eq!(pallet.balance(&alice), &u128::MAX);
-        assert_eq!(pallet.balance(&bob), &100);
+        assert_eq!(pallet.balance(&alice), u128::MAX);
+        assert_eq!(pallet.balance(&bob), 100);
     }
 }
