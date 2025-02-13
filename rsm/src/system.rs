@@ -9,9 +9,14 @@ pub enum BlockError {
     OverflowIncrementNonce,
 }
 
+type AccountId = String;
+type BlockNumber = u128;
+type Nonce = u32;
+
+#[derive(Debug)]
 pub struct Pallet {
-    bloc_number: u128,
-    nonce: BTreeMap<String, u32>, // Numver of transactions someone make on the blockchain
+    bloc_number: BlockNumber,
+    nonce: BTreeMap<AccountId, Nonce>, // Numver of transactions someone make on the blockchain
 }
 
 impl Pallet {
@@ -22,7 +27,7 @@ impl Pallet {
         }
     }
 
-    pub fn block_number(&self) -> u128 {
+    pub fn block_number(&self) -> BlockNumber {
         self.bloc_number
     }
 
@@ -35,7 +40,7 @@ impl Pallet {
         Ok(())
     }
 
-    pub fn increment_nonce(&mut self, who: &String) -> Result<(), BlockError> {
+    pub fn increment_nonce(&mut self, who: &AccountId) -> Result<(), BlockError> {
         let nonce = self.nonce.get(who).unwrap_or(&0);
         let new_nonce = nonce
             .checked_add(1)
@@ -45,7 +50,7 @@ impl Pallet {
         Ok(())
     }
 
-    pub fn get_nonce(&self, who: &String) -> u32 {
+    pub fn get_nonce(&self, who: &AccountId) -> Nonce {
         *self.nonce.get(who).unwrap_or(&0)
     }
 }
