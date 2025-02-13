@@ -1,0 +1,18 @@
+#!/bin/sh
+
+echo "🔍 Rodando cargo-tarpaulin para verificar cobertura de testes..."
+
+# Executa os testes e extrai a cobertura percentual
+COVERAGE=$(cargo tarpaulin --exclude-files src/main.rs --ignore-tests --fail-under 80 --timeout 120 --verbose --out html 2>&1 | tee /dev/tty | grep -oP 'Coverage Results:\s+\K\d+\.\d+')
+
+# Verifica se a cobertura foi obtida e é menor que 80%
+if [ -z "$COVERAGE" ]; then
+    echo "❌ Erro ao calcular cobertura de testes. Impedindo push!"
+    exit 1
+elif (( $(echo "$COVERAGE < 80" | bc -l) )); then
+    echo "❌ Cobertura de testes é de apenas $COVERAGE%. O mínimo exigido é 80%."
+    exit 1
+fi
+
+echo "✅ Cobertura de testes $COVERAGE% atingida! Push permitido."
+exit 0

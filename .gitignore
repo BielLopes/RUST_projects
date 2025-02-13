@@ -1,2 +1,8 @@
+# Builds and playgorund
 target/
 exploratoin/
+
+# Test coverage files
+coverage*
+lcov.info
+tarpaulin*
