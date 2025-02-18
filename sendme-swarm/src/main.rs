@@ -17,6 +17,7 @@ use swarm_discovery::Discoverer;
 use tokio::runtime::Builder;
 
 type PeerMap = Arc<Mutex<HashMap<String, Vec<NodeAddr>>>>;
+const BASE36: &str = "123456789abcdefghijkmnopqrstuvwxyz";
 
 #[derive(Parser, Debug)]
 #[command(version, about = "Swarm Discovery CLI")]
@@ -29,8 +30,6 @@ struct Cli {
     #[arg(short, long, default_value_t = 1234, help = "Porta de conexão")]
     port: u16,
 }
-
-const BASE36: &str = "123456789abcdefghijkmnopqrstuvwxyz";
 
 #[derive(Subcommand, Debug)]
 enum Commands {

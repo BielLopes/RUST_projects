@@ -1,4 +1,4 @@
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U64};
 use std::marker::PhantomData;
 use stylus_sdk::{
     msg,
@@ -19,8 +19,14 @@ pub struct Other<T> {
 
 #[public]
 impl<T: Params> Other<T> {
-    pub fn get_balance(&self) -> u64 {
-        self.balances.get(msg::sender()).to::<u64>()
+    pub fn get_balance(&self) -> U64 {
+        self.balances.get(msg::sender()).to::<U64>()
+    }
+
+    pub fn inc_balance(&mut self) {
+        let sender = msg::sender();
+        let balance = self.balances.get(sender).to::<U64>();
+        self.balances.insert(sender, balance + U64::from(1));
     }
 
     pub fn active() -> bool {
