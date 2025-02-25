@@ -3915,9 +3915,11 @@ dependencies = [
  "anyhow",
  "base-x",
  "clap",
+ "data-encoding",
  "if-addrs",
  "iroh",
  "iroh-blobs",
+ "rand 0.9.0",
  "swarm-discovery",
  "tokio",
 ]

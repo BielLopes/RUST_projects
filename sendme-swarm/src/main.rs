@@ -1,6 +1,6 @@
 use anyhow::Result;
-use base_x;
 use clap::{Parser, Subcommand};
+use data_encoding::BASE32_NOPAD_NOCASE as BASE32;
 use if_addrs::get_if_addrs;
 use iroh::{protocol::Router, Endpoint, NodeAddr, NodeId};
 use iroh_blobs::{
@@ -17,7 +17,7 @@ use swarm_discovery::Discoverer;
 use tokio::runtime::Builder;
 
 type PeerMap = Arc<Mutex<HashMap<String, Vec<NodeAddr>>>>;
-const BASE36: &str = "123456789abcdefghijkmnopqrstuvwxyz";
+// const BASE36: &str = "0123456789abcdefghijkmnopqrstuvwxyz";
 
 #[derive(Parser, Debug)]
 #[command(version, about = "Swarm Discovery CLI")]
@@ -84,7 +84,7 @@ async fn main() -> Result<()> {
             let channel_name = format!("file_{}", blob_hash);
 
             let node_id = router.endpoint().node_id();
-            let local_peer_id = base_x::encode(BASE36, node_id.as_bytes());
+            let local_peer_id = BASE32.encode(node_id.as_bytes());
 
             let _guard = Discoverer::new(channel_name, local_peer_id.clone())
                 .with_addrs(args.port, addrs)
@@ -100,7 +100,7 @@ async fn main() -> Result<()> {
             tokio::signal::ctrl_c().await?;
         }
         Commands::Receive { blob_hash, path } => {
-            let channel_name = format!("file_{}", blob_hash);
+            let channel_name = format!("file_yzvqh5gtay43prcpvoe2if63lk3pk3rnsf22ihq2t434vtajo6gq");
             let local_peer_id = format!(
                 "gitfreedom_peer_{}",
                 router
@@ -119,13 +119,21 @@ async fn main() -> Result<()> {
                 .with_callback(move |peer_id, peer| {
                     if peer_id != local_peer_id {
                         println!("Discovered peer {peer_id} at {:?}", peer);
-                        let decoded_node_id: &[u8; 32] = &base_x::decode(BASE36, &peer_id)
-                            .unwrap()
-                            .try_into()
-                            .expect("Should be 32 bytes");
+                        let decoded_node_id = BASE32
+                            .decode(peer_id.as_bytes())
+                            .expect("Failed to recovery with base 32!");
+                        let hex_node: String = decoded_node_id
+                            .iter()
+                            .map(|b| format!("{:02x}", b))
+                            .collect();
+                        println!("Recovery node_id: {hex_node}");
+                        let mut fixed_array = [0u8; 32];
+                        let len = decoded_node_id.len().min(32);
+                        fixed_array[..len].copy_from_slice(&decoded_node_id[..len]);
 
-                        if let Ok(node_id) = NodeId::from_bytes(&decoded_node_id) {
+                        if let Ok(node_id) = NodeId::from_bytes(&fixed_array) {
                             let mut map = peer_map_clone.lock().unwrap();
+                            println!("Adding: {node_id}");
                             map.entry(blob_hash_clone.clone())
                                 .or_insert_with(Vec::new)
                                 .push(NodeAddr::from(node_id));
@@ -142,6 +150,7 @@ async fn main() -> Result<()> {
                 let map = peer_map.lock().unwrap();
                 map.get(&blob_hash).cloned()
             };
+            println!("{peers:?}");
 
             if let Some(peers) = peers {
                 for peer in peers {

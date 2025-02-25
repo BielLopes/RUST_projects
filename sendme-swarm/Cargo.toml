@@ -7,8 +7,10 @@ edition = "2021"
 anyhow = "1.0.95"
 base-x = "0.2.11"
 clap = { version = "4.5.29", features = ["derive"] }
+data-encoding = "2.8.0"
 if-addrs = "0.13.3"
 iroh = "0.32.1"
 iroh-blobs = { version = "0.32.0", features = ["rpc"] }
+rand = "0.9.0"
 swarm-discovery = "0.2.1"
 tokio = "1.43.0"
