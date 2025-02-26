@@ -58,12 +58,7 @@ impl Contract {
 
     pub fn give_ownership(&mut self, new_owner: Address, new_username: String) -> String {
         match self.owner.owner_adr.get() {
-            addr if addr == Address::default() => {
-                self.owner.owner_adr.set(msg::sender());
-                self.owner.username.set_str(new_username.clone());
-                format!("Ownership transferred! Congratulations {}!", new_username)
-            }
-            addr if addr == msg::sender() => {
+            addr if (addr == Address::default() || addr == msg::sender()) => {
                 self.owner.owner_adr.set(new_owner);
                 self.owner.username.set_str(new_username.clone());
                 format!("Ownership transferred! Congratulations {}!", new_username)
