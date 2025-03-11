@@ -28,35 +28,36 @@ pub enum TransferError {
 //     }
 // }
 
-#[derive(Debug)]
-pub struct Pallet<AccountId, Balance> {
-    balances: BTreeMap<AccountId, Balance>,
+pub trait Config {
+    type AccountId: Ord + Clone;
+    type Balance: Zero + CheckedSub + CheckedAdd + Copy;
 }
 
-impl<AccountId, Balance> Pallet<AccountId, Balance>
-where
-    AccountId: Ord + Clone,
-    Balance: Zero + CheckedSub + CheckedAdd + Copy,
-{
+#[derive(Debug)]
+pub struct Pallet<T: Config> {
+    balances: BTreeMap<T::AccountId, T::Balance>,
+}
+
+impl<T: Config> Pallet<T> {
     pub fn new() -> Self {
         Self {
             balances: BTreeMap::new(),
         }
     }
 
-    pub fn set_balance(&mut self, who: &AccountId, balance: Balance) {
+    pub fn set_balance(&mut self, who: &T::AccountId, balance: T::Balance) {
         self.balances.insert(who.clone(), balance);
     }
 
-    pub fn balance(&self, who: &AccountId) -> Balance {
-        *self.balances.get(who).unwrap_or(&Balance::zero())
+    pub fn balance(&self, who: &T::AccountId) -> T::Balance {
+        *self.balances.get(who).unwrap_or(&T::Balance::zero())
     }
 
     pub fn transfer(
         &mut self,
-        from: &AccountId,
-        to: &AccountId,
-        amount: Balance,
+        from: &T::AccountId,
+        to: &T::AccountId,
+        amount: T::Balance,
     ) -> Result<(), TransferError> {
         let from_balance = self.balance(from);
         let to_balance = self.balance(to);
@@ -78,9 +79,15 @@ where
 #[cfg(test)]
 mod tets {
     use super::*;
-    use crate::types;
 
-    fn setup() -> (String, String, Pallet<types::AccountId, types::Balance>) {
+    struct TestConfig;
+
+    impl Config for TestConfig {
+        type AccountId = String;
+        type Balance = u128;
+    }
+
+    fn setup() -> (String, String, Pallet<TestConfig>) {
         (String::from("Alice"), String::from("Bob"), Pallet::new())
     }
 

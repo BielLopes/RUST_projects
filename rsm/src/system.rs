@@ -10,60 +10,68 @@ pub enum BlockError {
     OverflowIncrementNonce,
 }
 
-#[derive(Debug)]
-pub struct Pallet<AccountId, BlockNumber, Nonce> {
-    bloc_number: BlockNumber,
-    nonce: BTreeMap<AccountId, Nonce>, // Numver of transactions someone make on the blockchain
+pub trait Config {
+    type AccountId: Ord + Clone;
+    type BlockNumber: Zero + One + CheckedAdd + Copy;
+    type Nonce: Zero + One + CheckedSub + CheckedAdd + Copy;
 }
 
-impl<AccountId, BlockNumber, Nonce> Pallet<AccountId, BlockNumber, Nonce>
-where
-    AccountId: Ord + Clone,
-    BlockNumber: Zero + One + CheckedSub + CheckedAdd + Copy,
-    Nonce: Zero + One + CheckedSub + CheckedAdd + Copy,
-{
+#[derive(Debug)]
+pub struct Pallet<T: Config> {
+    bloc_number: T::BlockNumber,
+    nonce: BTreeMap<T::AccountId, T::Nonce>, // Numver of transactions someone make on the blockchain
+}
+
+impl<T: Config> Pallet<T> {
     pub fn new() -> Self {
         Self {
-            bloc_number: BlockNumber::zero(),
+            bloc_number: T::BlockNumber::zero(),
             nonce: BTreeMap::new(),
         }
     }
 
-    pub fn block_number(&self) -> BlockNumber {
+    pub fn block_number(&self) -> T::BlockNumber {
         self.bloc_number
     }
 
     pub fn increment_block_number(&mut self) -> Result<(), BlockError> {
         self.bloc_number = self
             .bloc_number
-            .checked_add(&BlockNumber::one())
+            .checked_add(&T::BlockNumber::one())
             .ok_or(BlockError::OverflowIncrementBlockNumber)?;
 
         Ok(())
     }
 
-    pub fn increment_nonce(&mut self, who: &AccountId) -> Result<(), BlockError> {
-        let binding = Nonce::zero();
+    pub fn increment_nonce(&mut self, who: &T::AccountId) -> Result<(), BlockError> {
+        let binding = T::Nonce::zero();
         let nonce = self.nonce.get(who).unwrap_or(&binding);
         let new_nonce = nonce
-            .checked_add(&Nonce::one())
+            .checked_add(&T::Nonce::one())
             .ok_or(BlockError::OverflowIncrementNonce)?;
         self.nonce.insert(who.clone(), new_nonce);
 
         Ok(())
     }
 
-    pub fn get_nonce(&self, who: &AccountId) -> Nonce {
-        *self.nonce.get(who).unwrap_or(&Nonce::zero())
+    pub fn get_nonce(&self, who: &T::AccountId) -> T::Nonce {
+        *self.nonce.get(who).unwrap_or(&T::Nonce::zero())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types;
 
-    fn setup() -> Pallet<types::AccountId, types::BlockNumber, types::Nonce> {
+    struct TestConfig;
+
+    impl Config for TestConfig {
+        type AccountId = String;
+        type Nonce = u32;
+        type BlockNumber = u128;
+    }
+
+    fn setup() -> Pallet<TestConfig> {
         Pallet::new()
     }
 
