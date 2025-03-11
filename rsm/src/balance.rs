@@ -28,8 +28,7 @@ pub enum TransferError {
 //     }
 // }
 
-pub trait Config {
-    type AccountId: Ord + Clone;
+pub trait Config: crate::system::Config {
     type Balance: Zero + CheckedSub + CheckedAdd + Copy;
 }
 
@@ -78,12 +77,19 @@ impl<T: Config> Pallet<T> {
 
 #[cfg(test)]
 mod tets {
+    use crate::system;
+
     use super::*;
 
     struct TestConfig;
 
-    impl Config for TestConfig {
+    impl system::Config for TestConfig {
         type AccountId = String;
+        type Nonce = u32;
+        type BlockNumber = u128;
+    }
+
+    impl Config for TestConfig {
         type Balance = u128;
     }
 
