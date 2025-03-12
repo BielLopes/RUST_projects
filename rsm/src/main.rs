@@ -1,4 +1,5 @@
 mod balance;
+mod proof_of_existence;
 mod support;
 mod system;
 mod types {

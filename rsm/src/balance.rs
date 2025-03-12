@@ -1,5 +1,6 @@
-use num::{CheckedAdd, CheckedSub, Zero};
 use std::collections::BTreeMap;
+
+use num::{CheckedAdd, CheckedSub, Zero};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
