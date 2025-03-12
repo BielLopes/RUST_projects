@@ -55,7 +55,7 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub fn get_nonce(&self, who: &T::AccountId) -> T::Nonce {
+    pub fn _get_nonce(&self, who: &T::AccountId) -> T::Nonce {
         *self.nonce.get(who).unwrap_or(&T::Nonce::zero())
     }
 }

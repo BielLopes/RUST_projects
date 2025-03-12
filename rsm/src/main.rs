@@ -18,11 +18,9 @@ use std::error::Error;
 use support::Dispatch;
 
 pub enum RuntimeCall<'a> {
-    BalanceTransfer {
-        to: &'a types::AccountId,
-        amount: types::Balance,
-    },
+    Balances(balance::Call<'a, Runtime>),
 }
+
 impl system::Config for Runtime {
     type AccountId = types::AccountId;
     type Nonce = types::Nonce;
@@ -82,10 +80,8 @@ impl<'a> crate::support::Dispatch<'a> for Runtime {
         runtime_call: Self::Call,
     ) -> support::DispatchResult {
         match runtime_call {
-            RuntimeCall::BalanceTransfer { to, amount } => {
-                self.balance.transfer(&caller, &to, amount)?;
-            }
-        }
+            RuntimeCall::Balances(call) => self.balance.dispatch(caller, call)?,
+        };
         Ok(())
     }
 }
@@ -104,17 +100,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         extrinsics: vec![
             support::Extrinsic {
                 caller: &alice,
-                call: RuntimeCall::BalanceTransfer {
+                call: RuntimeCall::Balances(balance::Call::Transfer {
                     to: &bob,
                     amount: 50,
-                },
+                }),
             },
             support::Extrinsic {
                 caller: &alice,
-                call: RuntimeCall::BalanceTransfer {
+                call: RuntimeCall::Balances(balance::Call::Transfer {
                     to: &charlie,
-                    amount: 50,
-                },
+                    amount: 40,
+                }),
             },
         ],
     };

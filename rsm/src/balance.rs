@@ -75,6 +75,32 @@ impl<T: Config> Pallet<T> {
     }
 }
 
+pub enum Call<'a, T: Config> {
+    Transfer {
+        to: &'a T::AccountId,
+        amount: T::Balance,
+    },
+}
+
+impl<'a, T: Config> crate::support::Dispatch<'a> for Pallet<T>
+where
+    T::AccountId: 'a,
+{
+    type Caller = &'a T::AccountId;
+    type Call = Call<'a, T>;
+
+    fn dispatch(
+        &mut self,
+        caller: Self::Caller,
+        call: Self::Call,
+    ) -> crate::support::DispatchResult {
+        match call {
+            Call::Transfer { to, amount } => self.transfer(caller, to, amount)?,
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tets {
     use crate::system;
