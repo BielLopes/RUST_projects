@@ -12,6 +12,7 @@ mod types {
     pub type Extrinsic<'a> = support::Extrinsic<&'a AccountId, crate::RuntimeCall<'a>>;
     pub type Header = support::Header<BlockNumber>;
     pub type Block<'a> = support::Block<Header, Extrinsic<'a>>;
+    pub type Content = String;
 }
 
 use std::error::Error;
@@ -20,6 +21,7 @@ use support::Dispatch;
 
 pub enum RuntimeCall<'a> {
     Balances(balance::Call<'a, Runtime>),
+    ProofOfExistence(proof_of_existence::Call<'a, Runtime>),
 }
 
 impl system::Config for Runtime {
@@ -32,10 +34,15 @@ impl balance::Config for Runtime {
     type Balance = types::Balance;
 }
 
+impl proof_of_existence::Config for Runtime {
+    type Content = types::Content;
+}
+
 #[derive(Debug)]
 pub struct Runtime {
     system: system::Pallet<Runtime>,
     balance: balance::Pallet<Runtime>,
+    proof_of_existence: proof_of_existence::Pallet<Runtime>,
 }
 
 impl Runtime {
@@ -43,6 +50,7 @@ impl Runtime {
         Runtime {
             system: system::Pallet::new(),
             balance: balance::Pallet::new(),
+            proof_of_existence: proof_of_existence::Pallet::new(),
         }
     }
 
@@ -82,6 +90,9 @@ impl<'a> crate::support::Dispatch<'a> for Runtime {
     ) -> support::DispatchResult {
         match runtime_call {
             RuntimeCall::Balances(call) => self.balance.dispatch(caller, call)?,
+            RuntimeCall::ProofOfExistence(call) => {
+                self.proof_of_existence.dispatch(caller, call)?
+            }
         };
         Ok(())
     }
@@ -118,6 +129,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     runtime
         .execute_block(block_1)
+        .map_err(|e| eprintln!("Error when executing block: {e}"))
+        .expect("[ERROR] Failed to proccess block!");
+
+    let block_2 = types::Block {
+        header: support::Header { block_number: 2 },
+        extrinsics: vec![support::Extrinsic {
+            caller: &alice,
+            call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim {
+                claim: String::from("Asset"),
+            }),
+        }],
+    };
+
+    runtime
+        .execute_block(block_2)
         .map_err(|e| eprintln!("Error when executing block: {e}"))
         .expect("[ERROR] Failed to proccess block!");
 

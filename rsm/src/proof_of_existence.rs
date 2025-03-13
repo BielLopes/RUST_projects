@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum ProofOfExistenceError {
+pub enum ClaimError {
     #[error("Claim already exists.")]
     ClaimAlreadyExists,
     #[error("Claim does not exists.")]
@@ -48,9 +48,9 @@ impl<T: Config> Pallet<T> {
         &mut self,
         caller: T::AccountId,
         claim: T::Content,
-    ) -> Result<(), ProofOfExistenceError> {
+    ) -> Result<(), ClaimError> {
         match self.claims.get(&claim) {
-            Some(_) => Err(ProofOfExistenceError::ClaimAlreadyExists),
+            Some(_) => Err(ClaimError::ClaimAlreadyExists),
             None => {
                 self.claims.insert(claim, caller);
                 Ok(())
@@ -65,16 +65,42 @@ impl<T: Config> Pallet<T> {
         &mut self,
         caller: &T::AccountId,
         claim: &T::Content,
-    ) -> Result<(), ProofOfExistenceError> {
+    ) -> Result<(), ClaimError> {
         let claim_owner = self
             .get_claim(claim)
-            .ok_or(ProofOfExistenceError::ClaimDoesNotExists)?;
+            .ok_or(ClaimError::ClaimDoesNotExists)?;
 
         if &claim_owner != caller {
-            return Err(ProofOfExistenceError::ClaimerNotOwnerContent);
+            return Err(ClaimError::ClaimerNotOwnerContent);
         }
 
         self.claims.remove(claim);
+        Ok(())
+    }
+}
+
+pub enum Call<'a, T: Config> {
+    CreateClaim { claim: T::Content },
+    RevokeClaim { claim: &'a T::Content },
+}
+
+impl<'a, T: Config> crate::support::Dispatch<'a> for Pallet<T>
+where
+    T::AccountId: 'a,
+    T::Content: 'a,
+{
+    type Caller = &'a T::AccountId;
+    type Call = Call<'a, T>;
+
+    fn dispatch(
+        &mut self,
+        caller: Self::Caller,
+        call: Self::Call,
+    ) -> crate::support::DispatchResult {
+        match call {
+            Call::CreateClaim { claim } => self.create_claim(caller.clone(), claim)?,
+            Call::RevokeClaim { claim } => self.revoke_claim(caller, claim)?,
+        }
         Ok(())
     }
 }
@@ -118,10 +144,7 @@ mod test {
         let err = poe
             .create_claim(String::from("bob"), asset.clone())
             .unwrap_err();
-        assert_eq!(
-            matches!(err, super::ProofOfExistenceError::ClaimAlreadyExists),
-            true
-        );
+        assert_eq!(matches!(err, super::ClaimError::ClaimAlreadyExists), true);
     }
 
     #[test]
@@ -129,15 +152,12 @@ mod test {
         let (alice, asset, mut poe) = setup();
 
         let err = poe.revoke_claim(&alice, &asset).unwrap_err();
-        assert_eq!(
-            matches!(err, super::ProofOfExistenceError::ClaimDoesNotExists),
-            true
-        );
+        assert_eq!(matches!(err, super::ClaimError::ClaimDoesNotExists), true);
 
         poe.create_claim(alice.clone(), asset.clone()).unwrap();
         let err = poe.revoke_claim(&String::from("bob"), &asset).unwrap_err();
         assert_eq!(
-            matches!(err, super::ProofOfExistenceError::ClaimerNotOwnerContent),
+            matches!(err, super::ClaimError::ClaimerNotOwnerContent),
             true
         );
 

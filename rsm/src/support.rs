@@ -35,7 +35,7 @@ pub enum DispatchError {
     #[error(transparent)]
     TransferError(#[from] crate::balance::TransferError),
     #[error(transparent)]
-    ProofOfExistenceError(#[from] crate::proof_of_existence::ProofOfExistenceError),
+    ClaimError(#[from] crate::proof_of_existence::ClaimError),
     #[error("Block number mismatch")]
     BlockNumberMismatch,
 }
