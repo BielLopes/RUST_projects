@@ -9,9 +9,9 @@ mod types {
     pub type Balance = u128;
     pub type BlockNumber = u128;
     pub type Nonce = u32;
-    pub type Extrinsic<'a> = support::Extrinsic<&'a AccountId, crate::RuntimeCall<'a>>;
+    pub type Extrinsic = support::Extrinsic<AccountId, crate::RuntimeCall>;
     pub type Header = support::Header<BlockNumber>;
-    pub type Block<'a> = support::Block<Header, Extrinsic<'a>>;
+    pub type Block = support::Block<Header, Extrinsic>;
     pub type Content = String;
 }
 
@@ -19,9 +19,9 @@ use std::error::Error;
 
 use support::Dispatch;
 
-pub enum RuntimeCall<'a> {
-    Balances(balance::Call<'a, Runtime>),
-    ProofOfExistence(proof_of_existence::Call<'a, Runtime>),
+pub enum RuntimeCall {
+    Balances(balance::Call<Runtime>),
+    ProofOfExistence(proof_of_existence::Call<Runtime>),
 }
 
 impl system::Config for Runtime {
@@ -63,7 +63,7 @@ impl Runtime {
 
         for (i, support::Extrinsic { caller, call }) in block.extrinsics.into_iter().enumerate() {
             self.system.increment_nonce(&caller)?;
-            let _ = self.dispatch(&caller, call).map_err(|e| {
+            let _ = self.dispatch(caller, call).map_err(|e| {
                 eprintln!(
                     "Extrinsic Error\n\tBlock Number: {}\n\tExtrinsic Number: {}\n\tError: {}",
                     block.header.block_number, i, e
@@ -75,9 +75,9 @@ impl Runtime {
     }
 }
 
-impl<'a> crate::support::Dispatch<'a> for Runtime {
-    type Caller = &'a <Runtime as system::Config>::AccountId;
-    type Call = RuntimeCall<'a>;
+impl crate::support::Dispatch for Runtime {
+    type Caller = <Runtime as system::Config>::AccountId;
+    type Call = RuntimeCall;
     // Dispatch a call on behalf of a caller. Increments the caller's nonce.
     //
     // Dispatch allows us to identify which underlying module call we want to execute.
@@ -91,7 +91,7 @@ impl<'a> crate::support::Dispatch<'a> for Runtime {
         match runtime_call {
             RuntimeCall::Balances(call) => self.balance.dispatch(caller, call)?,
             RuntimeCall::ProofOfExistence(call) => {
-                self.proof_of_existence.dispatch(caller, call)?
+                self.proof_of_existence.dispatch(caller.to_string(), call)?
             }
         };
         Ok(())
@@ -105,22 +105,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bob = String::from("Bob");
     let charlie = String::from("Charlie");
 
-    runtime.balance.set_balance(&alice, 100);
+    runtime.balance.set_balance(&&alice, 100);
 
     let block_1 = types::Block {
         header: support::Header { block_number: 1 },
         extrinsics: vec![
             support::Extrinsic {
-                caller: &alice,
-                call: RuntimeCall::Balances(balance::Call::Transfer {
-                    to: &bob,
+                caller: alice.clone(),
+                call: RuntimeCall::Balances(balance::Call::transfer {
+                    to: bob.clone(),
                     amount: 50,
                 }),
             },
             support::Extrinsic {
-                caller: &alice,
-                call: RuntimeCall::Balances(balance::Call::Transfer {
-                    to: &charlie,
+                caller: alice.clone(),
+                call: RuntimeCall::Balances(balance::Call::transfer {
+                    to: charlie,
                     amount: 40,
                 }),
             },
@@ -135,8 +135,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let block_2 = types::Block {
         header: support::Header { block_number: 2 },
         extrinsics: vec![support::Extrinsic {
-            caller: &alice,
-            call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim {
+            caller: alice,
+            call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::create_claim {
                 claim: String::from("Asset"),
             }),
         }],

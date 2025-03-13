@@ -38,6 +38,31 @@ pub struct Pallet<T: Config> {
     balances: BTreeMap<T::AccountId, T::Balance>,
 }
 
+#[macros::call]
+impl<T: Config> Pallet<T> {
+    pub fn transfer(
+        &mut self,
+        caller: T::AccountId,
+        to: T::AccountId,
+        amount: T::Balance,
+    ) -> Result<(), TransferError> {
+        let from_balance = self.balance(&caller);
+        let to_balance = self.balance(&to);
+
+        let new_from_balance = from_balance
+            .checked_sub(&amount)
+            .ok_or(TransferError::InsufficientBalance)?;
+        let new_to_balance = to_balance
+            .checked_add(&amount)
+            .ok_or(TransferError::OverflowBalance)?;
+
+        self.set_balance(&caller, new_from_balance);
+        self.set_balance(&to, new_to_balance);
+
+        Ok(())
+    }
+}
+
 impl<T: Config> Pallet<T> {
     pub fn new() -> Self {
         Self {
@@ -50,55 +75,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn balance(&self, who: &T::AccountId) -> T::Balance {
-        *self.balances.get(who).unwrap_or(&T::Balance::zero())
-    }
-
-    pub fn transfer(
-        &mut self,
-        from: &T::AccountId,
-        to: &T::AccountId,
-        amount: T::Balance,
-    ) -> Result<(), TransferError> {
-        let from_balance = self.balance(from);
-        let to_balance = self.balance(to);
-
-        let new_from_balance = from_balance
-            .checked_sub(&amount)
-            .ok_or(TransferError::InsufficientBalance)?;
-        let new_to_balance = to_balance
-            .checked_add(&amount)
-            .ok_or(TransferError::OverflowBalance)?;
-
-        self.set_balance(from, new_from_balance);
-        self.set_balance(to, new_to_balance);
-
-        Ok(())
-    }
-}
-
-pub enum Call<'a, T: Config> {
-    Transfer {
-        to: &'a T::AccountId,
-        amount: T::Balance,
-    },
-}
-
-impl<'a, T: Config> crate::support::Dispatch<'a> for Pallet<T>
-where
-    T::AccountId: 'a,
-{
-    type Caller = &'a T::AccountId;
-    type Call = Call<'a, T>;
-
-    fn dispatch(
-        &mut self,
-        caller: Self::Caller,
-        call: Self::Call,
-    ) -> crate::support::DispatchResult {
-        match call {
-            Call::Transfer { to, amount } => self.transfer(caller, to, amount)?,
-        }
-        Ok(())
+        *self.balances.get(&who).unwrap_or(&T::Balance::zero())
     }
 }
 
@@ -141,7 +118,7 @@ mod tets {
         pallet.set_balance(&alice, 100);
         pallet.set_balance(&bob, 100);
 
-        pallet.transfer(&alice, &bob, 50).unwrap();
+        pallet.transfer(alice.clone(), bob.clone(), 50).unwrap();
         assert_eq!(pallet.balance(&alice), 50);
         assert_eq!(pallet.balance(&bob), 150);
     }
@@ -153,7 +130,7 @@ mod tets {
         pallet.set_balance(&alice, 100);
         pallet.set_balance(&bob, 100);
 
-        let result = pallet.transfer(&alice, &bob, 150);
+        let result = pallet.transfer(alice.clone(), bob.clone(), 150);
 
         assert_eq!(
             result.unwrap_err().to_string(),
@@ -170,7 +147,7 @@ mod tets {
         pallet.set_balance(&alice, u128::MAX);
         pallet.set_balance(&bob, 100);
 
-        let result = pallet.transfer(&bob, &alice, 1);
+        let result = pallet.transfer(bob.clone(), alice.clone(), 1);
 
         assert_eq!(
             result.unwrap_err().to_string(),

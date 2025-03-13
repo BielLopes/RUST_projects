@@ -43,7 +43,7 @@ pub type DispatchResult = Result<(), DispatchError>;
 
 /// A trait which allows us to dispatch an incoming extrinsic to the appropriate state transition
 /// function call.
-pub trait Dispatch<'a> {
+pub trait Dispatch {
     /// The type used to identify the caller of the function.
     type Caller;
     /// The state transition function call the caller is trying to access.

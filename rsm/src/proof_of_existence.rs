@@ -41,7 +41,10 @@ impl<T: Config> Pallet<T> {
     pub fn get_claim(&self, claim: &T::Content) -> Option<T::AccountId> {
         self.claims.get(claim).cloned()
     }
+}
 
+#[macros::call]
+impl<T: Config> Pallet<T> {
     /// Cria uma nova reivindicação em nome do `caller`.
     /// Esta função retornará um erro se alguém já tiver reivindicado esse conteúdo.
     pub fn create_claim(
@@ -63,47 +66,43 @@ impl<T: Config> Pallet<T> {
     /// Retornará um erro se a reivindicação não existir ou se o chamador não for o proprietário.
     pub fn revoke_claim(
         &mut self,
-        caller: &T::AccountId,
-        claim: &T::Content,
+        caller: T::AccountId,
+        claim: T::Content,
     ) -> Result<(), ClaimError> {
         let claim_owner = self
-            .get_claim(claim)
+            .get_claim(&claim)
             .ok_or(ClaimError::ClaimDoesNotExists)?;
 
-        if &claim_owner != caller {
+        if claim_owner != caller {
             return Err(ClaimError::ClaimerNotOwnerContent);
         }
 
-        self.claims.remove(claim);
+        self.claims.remove(&claim);
         Ok(())
     }
 }
 
-pub enum Call<'a, T: Config> {
-    CreateClaim { claim: T::Content },
-    RevokeClaim { claim: &'a T::Content },
-}
-
-impl<'a, T: Config> crate::support::Dispatch<'a> for Pallet<T>
-where
-    T::AccountId: 'a,
-    T::Content: 'a,
-{
-    type Caller = &'a T::AccountId;
-    type Call = Call<'a, T>;
-
-    fn dispatch(
-        &mut self,
-        caller: Self::Caller,
-        call: Self::Call,
-    ) -> crate::support::DispatchResult {
-        match call {
-            Call::CreateClaim { claim } => self.create_claim(caller.clone(), claim)?,
-            Call::RevokeClaim { claim } => self.revoke_claim(caller, claim)?,
-        }
-        Ok(())
-    }
-}
+// pub enum Call<T: Config> {
+//     CreateClaim { claim: T::Content },
+//     RevokeClaim { claim: T::Content },
+// }
+//
+// impl<T: Config> crate::support::Dispatch for Pallet<T> {
+//     type Caller = T::AccountId;
+//     type Call = Call<T>;
+//
+//     fn dispatch(
+//         &mut self,
+//         caller: Self::Caller,
+//         call: Self::Call,
+//     ) -> crate::support::DispatchResult {
+//         match call {
+//             Call::CreateClaim { claim } => self.create_claim(caller.clone(), claim)?,
+//             Call::RevokeClaim { claim } => self.revoke_claim(&caller, &claim)?,
+//         }
+//         Ok(())
+//     }
+// }
 
 #[cfg(test)]
 mod test {
@@ -151,17 +150,19 @@ mod test {
     fn revoke_proof_of_existence() {
         let (alice, asset, mut poe) = setup();
 
-        let err = poe.revoke_claim(&alice, &asset).unwrap_err();
+        let err = poe.revoke_claim(alice.clone(), asset.clone()).unwrap_err();
         assert_eq!(matches!(err, super::ClaimError::ClaimDoesNotExists), true);
 
         poe.create_claim(alice.clone(), asset.clone()).unwrap();
-        let err = poe.revoke_claim(&String::from("bob"), &asset).unwrap_err();
+        let err = poe
+            .revoke_claim(String::from("bob"), asset.clone())
+            .unwrap_err();
         assert_eq!(
             matches!(err, super::ClaimError::ClaimerNotOwnerContent),
             true
         );
 
-        assert_eq!(poe.revoke_claim(&alice, &asset).unwrap(), ());
+        assert_eq!(poe.revoke_claim(alice, asset.clone()).unwrap(), ());
         assert_eq!(poe.get_claim(&asset), None);
     }
 }
