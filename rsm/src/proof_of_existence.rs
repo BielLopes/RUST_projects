@@ -1,18 +1,6 @@
 use core::fmt::Debug;
 use std::collections::BTreeMap;
 
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum ClaimError {
-    #[error("Claim already exists.")]
-    ClaimAlreadyExists,
-    #[error("Claim does not exists.")]
-    ClaimDoesNotExists,
-    #[error("Claimer is not the owner of the content.")]
-    ClaimerNotOwnerContent,
-}
-
 pub trait Config: crate::system::Config {
     /// O tipo que representa o conteúdo que pode ser reivindicado usando este pallet.
     /// Pode ser o conteúdo diretamente como bytes, ou melhor ainda, o hash desse conteúdo.
@@ -51,9 +39,9 @@ impl<T: Config> Pallet<T> {
         &mut self,
         caller: T::AccountId,
         claim: T::Content,
-    ) -> Result<(), ClaimError> {
+    ) -> crate::support::DispatchResult {
         match self.claims.get(&claim) {
-            Some(_) => Err(ClaimError::ClaimAlreadyExists),
+            Some(_) => Err("Claim already exists."),
             None => {
                 self.claims.insert(claim, caller);
                 Ok(())
@@ -68,41 +56,17 @@ impl<T: Config> Pallet<T> {
         &mut self,
         caller: T::AccountId,
         claim: T::Content,
-    ) -> Result<(), ClaimError> {
-        let claim_owner = self
-            .get_claim(&claim)
-            .ok_or(ClaimError::ClaimDoesNotExists)?;
+    ) -> crate::support::DispatchResult {
+        let claim_owner = self.get_claim(&claim).ok_or("Clain do not exist.")?;
 
         if claim_owner != caller {
-            return Err(ClaimError::ClaimerNotOwnerContent);
+            return Err("Claimer is not the owner of the content.");
         }
 
         self.claims.remove(&claim);
         Ok(())
     }
 }
-
-// pub enum Call<T: Config> {
-//     CreateClaim { claim: T::Content },
-//     RevokeClaim { claim: T::Content },
-// }
-//
-// impl<T: Config> crate::support::Dispatch for Pallet<T> {
-//     type Caller = T::AccountId;
-//     type Call = Call<T>;
-//
-//     fn dispatch(
-//         &mut self,
-//         caller: Self::Caller,
-//         call: Self::Call,
-//     ) -> crate::support::DispatchResult {
-//         match call {
-//             Call::CreateClaim { claim } => self.create_claim(caller.clone(), claim)?,
-//             Call::RevokeClaim { claim } => self.revoke_claim(&caller, &claim)?,
-//         }
-//         Ok(())
-//     }
-// }
 
 #[cfg(test)]
 mod test {
@@ -143,7 +107,7 @@ mod test {
         let err = poe
             .create_claim(String::from("bob"), asset.clone())
             .unwrap_err();
-        assert_eq!(matches!(err, super::ClaimError::ClaimAlreadyExists), true);
+        assert_eq!(matches!(err, "Claim already exists."), true);
     }
 
     #[test]
@@ -151,14 +115,14 @@ mod test {
         let (alice, asset, mut poe) = setup();
 
         let err = poe.revoke_claim(alice.clone(), asset.clone()).unwrap_err();
-        assert_eq!(matches!(err, super::ClaimError::ClaimDoesNotExists), true);
+        assert_eq!(matches!(err, "Claim does not exist."), true);
 
         poe.create_claim(alice.clone(), asset.clone()).unwrap();
         let err = poe
             .revoke_claim(String::from("bob"), asset.clone())
             .unwrap_err();
         assert_eq!(
-            matches!(err, super::ClaimError::ClaimerNotOwnerContent),
+            matches!(err, "Claimer is not the owner of the content."),
             true
         );
 

@@ -19,11 +19,6 @@ use std::error::Error;
 
 use support::Dispatch;
 
-pub enum RuntimeCall {
-    Balances(balance::Call<Runtime>),
-    ProofOfExistence(proof_of_existence::Call<Runtime>),
-}
-
 impl system::Config for Runtime {
     type AccountId = types::AccountId;
     type Nonce = types::Nonce;
@@ -39,63 +34,11 @@ impl proof_of_existence::Config for Runtime {
 }
 
 #[derive(Debug)]
+#[macros::runtime]
 pub struct Runtime {
     system: system::Pallet<Runtime>,
     balance: balance::Pallet<Runtime>,
     proof_of_existence: proof_of_existence::Pallet<Runtime>,
-}
-
-impl Runtime {
-    pub fn new() -> Self {
-        Runtime {
-            system: system::Pallet::new(),
-            balance: balance::Pallet::new(),
-            proof_of_existence: proof_of_existence::Pallet::new(),
-        }
-    }
-
-    fn execute_block(&mut self, block: types::Block) -> support::DispatchResult {
-        self.system.increment_block_number()?;
-
-        if self.system.block_number() != block.header.block_number {
-            return Err(support::DispatchError::BlockNumberMismatch);
-        }
-
-        for (i, support::Extrinsic { caller, call }) in block.extrinsics.into_iter().enumerate() {
-            self.system.increment_nonce(&caller)?;
-            let _ = self.dispatch(caller, call).map_err(|e| {
-                eprintln!(
-                    "Extrinsic Error\n\tBlock Number: {}\n\tExtrinsic Number: {}\n\tError: {}",
-                    block.header.block_number, i, e
-                )
-            });
-        }
-
-        Ok(())
-    }
-}
-
-impl crate::support::Dispatch for Runtime {
-    type Caller = <Runtime as system::Config>::AccountId;
-    type Call = RuntimeCall;
-    // Dispatch a call on behalf of a caller. Increments the caller's nonce.
-    //
-    // Dispatch allows us to identify which underlying module call we want to execute.
-    // Note that we extract the `caller` from the extrinsic, and use that information
-    // to determine who we are executing the call on behalf of.
-    fn dispatch(
-        &mut self,
-        caller: Self::Caller,
-        runtime_call: Self::Call,
-    ) -> support::DispatchResult {
-        match runtime_call {
-            RuntimeCall::Balances(call) => self.balance.dispatch(caller, call)?,
-            RuntimeCall::ProofOfExistence(call) => {
-                self.proof_of_existence.dispatch(caller.to_string(), call)?
-            }
-        };
-        Ok(())
-    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -112,14 +55,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         extrinsics: vec![
             support::Extrinsic {
                 caller: alice.clone(),
-                call: RuntimeCall::Balances(balance::Call::transfer {
+                call: RuntimeCall::balance(balance::Call::transfer {
                     to: bob.clone(),
                     amount: 50,
                 }),
             },
             support::Extrinsic {
                 caller: alice.clone(),
-                call: RuntimeCall::Balances(balance::Call::transfer {
+                call: RuntimeCall::balance(balance::Call::transfer {
                     to: charlie,
                     amount: 40,
                 }),
@@ -136,7 +79,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         header: support::Header { block_number: 2 },
         extrinsics: vec![support::Extrinsic {
             caller: alice,
-            call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::create_claim {
+            call: RuntimeCall::proof_of_existence(proof_of_existence::Call::create_claim {
                 claim: String::from("Asset"),
             }),
         }],

@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 /// The most primitive representation of a Blockchain block.
 pub struct Block<Header, Extrinsic> {
     /// The block header contains metadata about the block.
@@ -28,18 +26,7 @@ pub struct Extrinsic<Caller, Call> {
 
 /// The Result type for our runtime. When everything completes successfully, we return `Ok(())`,
 /// otherwise return a custom error message.
-#[derive(Debug, Error)]
-pub enum DispatchError {
-    #[error(transparent)]
-    BlockError(#[from] crate::system::BlockError),
-    #[error(transparent)]
-    TransferError(#[from] crate::balance::TransferError),
-    #[error(transparent)]
-    ClaimError(#[from] crate::proof_of_existence::ClaimError),
-    #[error("Block number mismatch")]
-    BlockNumberMismatch,
-}
-pub type DispatchResult = Result<(), DispatchError>;
+pub type DispatchResult = Result<(), &'static str>;
 
 /// A trait which allows us to dispatch an incoming extrinsic to the appropriate state transition
 /// function call.

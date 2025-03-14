@@ -1,33 +1,6 @@
 use std::collections::BTreeMap;
 
 use num::{CheckedAdd, CheckedSub, Zero};
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum TransferError {
-    #[error("Insufficient balance")]
-    InsufficientBalance,
-    #[error("Overflow when added to balance")]
-    OverflowBalance,
-}
-
-// Simple way to transform error to string implementing the Display trait:
-// use std::fmt::Display;
-
-// #[derive(Debug)]
-// pub enum TransferError {
-//     InsufficientBalance,
-//     OverflowBalance,
-// }
-//
-// impl Display for TransferError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         match self {
-//             TransferError::InsufficientBalance => write!(f, "Insufficient balance"),
-//             TransferError::OverflowBalance => write!(f, "Overflow when added to balance"),
-//         }
-//     }
-// }
 
 pub trait Config: crate::system::Config {
     type Balance: Zero + CheckedSub + CheckedAdd + Copy;
@@ -45,16 +18,16 @@ impl<T: Config> Pallet<T> {
         caller: T::AccountId,
         to: T::AccountId,
         amount: T::Balance,
-    ) -> Result<(), TransferError> {
+    ) -> crate::support::DispatchResult {
         let from_balance = self.balance(&caller);
         let to_balance = self.balance(&to);
 
         let new_from_balance = from_balance
             .checked_sub(&amount)
-            .ok_or(TransferError::InsufficientBalance)?;
+            .ok_or("Insufficient balance.")?;
         let new_to_balance = to_balance
             .checked_add(&amount)
-            .ok_or(TransferError::OverflowBalance)?;
+            .ok_or("Overflow when adding to balance.")?;
 
         self.set_balance(&caller, new_from_balance);
         self.set_balance(&to, new_to_balance);
@@ -132,10 +105,7 @@ mod tets {
 
         let result = pallet.transfer(alice.clone(), bob.clone(), 150);
 
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            TransferError::InsufficientBalance.to_string()
-        );
+        assert_eq!(result.unwrap_err(), "Insufficient balance.");
         assert_eq!(pallet.balance(&alice), 100);
         assert_eq!(pallet.balance(&bob), 100);
     }
@@ -149,10 +119,7 @@ mod tets {
 
         let result = pallet.transfer(bob.clone(), alice.clone(), 1);
 
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            TransferError::OverflowBalance.to_string()
-        );
+        assert_eq!(result.unwrap_err(), "Overflow when adding to balance.");
         assert_eq!(pallet.balance(&alice), u128::MAX);
         assert_eq!(pallet.balance(&bob), 100);
     }

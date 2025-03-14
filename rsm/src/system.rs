@@ -1,15 +1,6 @@
 use std::collections::BTreeMap;
 
 use num::{CheckedAdd, CheckedSub, One, Zero};
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum BlockError {
-    #[error("Overflow when incrementing block number")]
-    OverflowIncrementBlockNumber,
-    #[error("Overflow when incrementing nonce")]
-    OverflowIncrementNonce,
-}
 
 pub trait Config {
     type AccountId: Ord + Clone;
@@ -35,21 +26,21 @@ impl<T: Config> Pallet<T> {
         self.bloc_number
     }
 
-    pub fn increment_block_number(&mut self) -> Result<(), BlockError> {
+    pub fn inc_block_number(&mut self) -> crate::support::DispatchResult {
         self.bloc_number = self
             .bloc_number
             .checked_add(&T::BlockNumber::one())
-            .ok_or(BlockError::OverflowIncrementBlockNumber)?;
+            .ok_or("Overflow when incrementing block number.")?;
 
         Ok(())
     }
 
-    pub fn increment_nonce(&mut self, who: &T::AccountId) -> Result<(), BlockError> {
+    pub fn inc_nonce(&mut self, who: &T::AccountId) -> crate::support::DispatchResult {
         let binding = T::Nonce::zero();
         let nonce = self.nonce.get(who).unwrap_or(&binding);
         let new_nonce = nonce
             .checked_add(&T::Nonce::one())
-            .ok_or(BlockError::OverflowIncrementNonce)?;
+            .ok_or("Overflow when incrementing nonce.")?;
         self.nonce.insert(who.clone(), new_nonce);
 
         Ok(())
@@ -85,7 +76,7 @@ mod tests {
     #[test]
     fn increment_block_number() {
         let mut system = setup();
-        let _ = system.increment_block_number();
+        let _ = system.inc_block_number();
         assert_eq!(system.block_number(), 1);
     }
 
@@ -93,7 +84,7 @@ mod tests {
     fn increment_nonce() {
         let mut system = setup();
         let alice = String::from("Alice");
-        let _ = system.increment_nonce(&alice);
+        let _ = system.inc_nonce(&alice);
         assert_eq!(system.get_nonce(&alice), 1);
     }
 }
