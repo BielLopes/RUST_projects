@@ -1,0 +1,9 @@
+[package]
+name = "lmdb"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bincode = "2.0.1"
+lmdb-rkv = "0.14.0"
+lz4_flex = "0.11.3"
